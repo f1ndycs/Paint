@@ -1,6 +1,7 @@
 import tkinter as tk
-from tkinter import simpledialog, colorchooser, font, Canvas, messagebox
+from tkinter import simpledialog, colorchooser, font, messagebox
 from typing import Dict, Tuple, List, Optional, Any
+from canvas import DrawingCanvas
 
 
 class TextBox:
@@ -8,7 +9,7 @@ class TextBox:
     Класс, отвечающий за создание и редактирование текстовых блоков.
     """
 
-    def __init__(self, canvas: Canvas, index_x: int = 500, index_y: int = 200, text: str = "Text",
+    def __init__(self, canvas: DrawingCanvas, index_x: int = 500, index_y: int = 200, text: str = "Text",
                  font: Tuple = ("Helvetica", 14), color: str = "black"):
         """
         Конструктор класса текстового блока.
@@ -39,7 +40,7 @@ class TextBox:
         """
         Метод открывает диалог для ввода нового текста.
         """
-        new_text = simpledialog.askstring("Создание текста", "Введите текст:", parent=self.canvas)
+        new_text = simpledialog.askstring("Создание текста", "Введите текст:", parent=self.canvas.canvas)
         if new_text:
             self.update_text(new_text)
             self.create_text_box()
@@ -50,10 +51,10 @@ class TextBox:
         """
         new_color = colorchooser.askcolor(title="Выбор цвета текста")[1]
         if new_color:
-
             if clicked_text:
-                self.canvas.itemconfig(clicked_text, fill=new_color)
-
+                self.canvas.canvas.itemconfig(clicked_text, fill=new_color)
+                # Отправляем изменения на сервер
+                self._update_canvas_state()
             else:
                 self.update_color(new_color)
 
@@ -74,13 +75,15 @@ class TextBox:
             if clicked_text:
                 font_attributes = self.text_font_sync(clicked_text)
                 font_attributes[1] = size
-                self.canvas.itemconfig(clicked_text, font=tuple(font_attributes))
+                self.canvas.canvas.itemconfig(clicked_text, font=tuple(font_attributes))
+                # Отправляем изменения на сервер
+                self._update_canvas_state()
             else:
                 self.font = (self.font[0], size)
 
             top.destroy()
 
-        top = tk.Toplevel(self.canvas)
+        top = tk.Toplevel(self.canvas.canvas)
         top.title("Размер текста")
         top.grab_set()  # Блокирует остальные окна
 
@@ -95,7 +98,7 @@ class TextBox:
         """
         Метод создаёт новый текстовый блок и сохраняет его ID в словаре.
         """
-        text_id = self.canvas.create_text(
+        text_id = self.canvas.canvas.create_text(
             self.x,
             self.y,
             text=self.text,
@@ -104,12 +107,14 @@ class TextBox:
             tags=("movable", "erasable", "text_box"))
         self.text_boxes[text_id] = {"text": self.text, "font": self.font, "fill": self.color}
         self.text_styles[text_id] = {"bold": False}
+        # Отправляем изменения на сервер
+        self._update_canvas_state()
 
     def split_text_font_attributes(self, clicked_text: int) -> Tuple[str, Optional[int], Optional[str], Optional[str]]:
         """
         Метод помогает отслеживать атрибуты шрифта текста.
         """
-        font_attr_string = self.canvas.itemcget(clicked_text, "font")
+        font_attr_string = self.canvas.canvas.itemcget(clicked_text, "font")
         font_attributes = font_attr_string.split()
 
         font_name_parts: List[str] = []
@@ -156,13 +161,15 @@ class TextBox:
         self.text_styles[clicked_text][style] = not self.text_styles[clicked_text][style]
         font_attributes = self.text_font_sync(clicked_text)
 
-        self.canvas.itemconfig(clicked_text, font=tuple(font_attributes))
+        self.canvas.canvas.itemconfig(clicked_text, font=tuple(font_attributes))
+        # Отправляем изменения на сервер
+        self._update_canvas_state()
 
     def choose_font_family(self, clicked_text: Optional[int] = None) -> None:
         """
         Метод открывает окно с полосой прокрутки для выбора шрифта.
         """
-        self.font_window = tk.Toplevel(self.canvas)
+        self.font_window = tk.Toplevel(self.canvas.canvas)
         self.font_window.title("Выбор шрифта")
 
         self.font_listbox = tk.Listbox(self.font_window)
@@ -187,8 +194,21 @@ class TextBox:
         if clicked_text:
             font_attributes = self.text_font_sync(clicked_text)
             font_attributes[0] = selected_font
-            self.canvas.itemconfig(clicked_text, font=tuple(font_attributes))
-
+            self.canvas.canvas.itemconfig(clicked_text, font=tuple(font_attributes))
+            # Отправляем изменения на сервер
+            self._update_canvas_state()
         else:
             self.font = selected_font
         self.font_window.destroy()
+
+    def _update_canvas_state(self):
+        """Вспомогательный метод для отправки состояния холста"""
+        if hasattr(self.canvas.root, 'network') and self.canvas.root.network.connected:
+            items_data = self.canvas.root.file_manager.objects_data_collector()
+            self.canvas.root.network.send({
+                'type': 'draw',
+                'data': {
+                    'drawings': items_data,
+                    'background': self.canvas.bg
+                }
+            })

@@ -1,48 +1,141 @@
 from canvas import DrawingCanvas
-from brush import Brush
 from shapes import Shapes
 from text_box import TextBox
 from file_manager import FileManager
 from object_manipulator import ObjectManipulator
 import tkinter as tk
+from tkinter import simpledialog
+from network import NetworkClient
 
 BUTTONS_BG = 'white'
 FRAME_BG = 'light blue'
 
 
 class MainWindow(tk.Tk):
-    """
-    Главный класс окна и основной оператор графической программы для рисования и дизайна.
-    Содержит все элементы графического интерфейса (кнопки, меню и т. д.).
-    """
-
     def __init__(self):
-        """
-        Конструктор главного окна программы для иллюстраций и дизайна.
-        Этот класс отвечает за создание виджетов и переключение между режимами.
-        """
-
         super().__init__()
         self.title('Сетевое приложение "Интерактивный графический редактор"')
         self.geometry("1000x600")
         self.tooltip_window = None
         self.active_button = None
 
+        # Создаем кнопку подключения ДО вызова connect_to_server
         self.modes_frame = tk.Frame(self, background=FRAME_BG)
         self.modes_frame.pack(side="top", fill=tk.BOTH, expand=False)
         self.buttons_frame = tk.Frame(self.modes_frame, bg=FRAME_BG)
         self.buttons_frame.pack(anchor='center')
 
-        self.drawing_canvas = DrawingCanvas(self, width=800, height=600)
-        self.brush = Brush()
-        self.file_manager = FileManager(self.drawing_canvas)
-        self.text_box = TextBox(self.drawing_canvas.canvas)
-        self.shapes = Shapes(self.drawing_canvas)
-        self.object_manipulator = ObjectManipulator(self.drawing_canvas, self.text_box, self.shapes, self.file_manager)
+        self.network_button = tk.Button(self.buttons_frame, text="Подключиться",
+                                        command=self.connect_to_server, bg=BUTTONS_BG)
+        self.network_button.pack(side="left", padx=(0, 5))
 
-        self.drawing_canvas.set_brush(self.brush)
+        # Инициализация сетевого подключения
+        self.network = NetworkClient()
+
+        # Остальная инициализация
+        self.drawing_canvas = DrawingCanvas(self, width=800, height=600)
+        self.file_manager = FileManager(self.drawing_canvas)
+        self.text_box = TextBox(self.drawing_canvas)
+        self.shapes = Shapes(self.drawing_canvas)
+        self.object_manipulator = ObjectManipulator(self.drawing_canvas, self.text_box, self.shapes)
+
         self.tools_widgets()
         self.buttons_widgets()
+
+        # Обновляем состояние холста при изменениях
+        self.drawing_canvas.canvas.bind("<Configure>", self.update_canvas_state)
+        self.drawing_canvas.canvas.bind("<ButtonRelease-1>", self.update_canvas_state)
+        self.drawing_canvas.canvas.bind("<KeyRelease>", self.update_canvas_state)
+
+        # Устанавливаем пустой режим вместо кисти
+        self.drawing_canvas.set_mode('none')
+
+    def connect_to_server(self):
+        """Подключается к серверу и начинает получать обновления"""
+        if self.network.connected:
+            self.network.disconnect()
+            self.network_button.config(text="Подключиться", bg=BUTTONS_BG)
+            self.active_button = None
+            return
+
+        client_name = simpledialog.askstring("Подключение", "Введите ваше имя:")
+        if not client_name:
+            return
+
+        # Создаем новый клиент при каждом подключении
+        self.network = NetworkClient()  # Пересоздаем клиент
+        if self.network.connect(client_name):
+            self.network_button.config(text="Отключиться", bg="light green")
+            self.network.start_listening(self.handle_network_message)
+        else:
+            self.network_button.config(text="Ошибка", bg="red")
+            self.network = NetworkClient()  # Сбрасываем клиент при ошибке
+
+    def handle_network_message(self, message):
+        """Обрабатывает сообщения от сервера"""
+        if not hasattr(self, 'network') or not self.network.connected:
+            return
+
+        message_type = message.get('type')
+
+        if message_type == 'init':
+            self.load_canvas_state(message['data'])
+            # Устанавливаем режим из состояния сервера
+            self.drawing_canvas.set_mode(message['data'].get('current_mode', 'none'))
+
+        elif message_type == 'update':
+            # Обновляем только рисунки и фон
+            self.drawing_canvas.canvas.delete("all")
+            self.drawing_canvas.update_background(message['data']['background'])
+
+            for item_data in message['data'].get('drawings', []):
+                self.file_manager.create_item(item_data)
+
+        elif message_type == 'clear':
+            self.drawing_canvas.reset_canvas(notify=False)
+            self.drawing_canvas.set_mode('none')
+
+    def update_active_button(self, mode: str):
+        """Обновляет активную кнопку в интерфейсе"""
+        if self.active_button:
+            self.active_button.config(bg=BUTTONS_BG)
+
+        self.active_button = getattr(self, mode + '_button', None)
+
+        if self.active_button:
+            self.active_button.config(bg='gray')
+
+    def load_canvas_state(self, state):
+        """Загружает состояние холста из данных сервера"""
+        # Отключаем обработчики событий, чтобы избежать рекурсии
+        self.drawing_canvas.clear_bindings()
+
+        # Очищаем холст
+        self.drawing_canvas.canvas.delete("all")
+
+        # Устанавливаем фон
+        self.drawing_canvas.update_background(state['background'])
+
+        # Восстанавливаем рисунки
+        for item_data in state['drawings']:
+            self.file_manager.create_item(item_data)
+
+    def update_canvas_state(self, event=None):
+        """Отправляет текущее состояние холста на сервер"""
+        if hasattr(self, 'network') and self.network.connected:
+            self._send_canvas_state()
+
+    def _send_canvas_state(self):
+        """Фактическая отправка состояния холста"""
+        items_data = self.file_manager.objects_data_collector()
+
+        self.network.send({
+            'type': 'draw',
+            'data': {
+                'drawings': items_data,
+                'background': self.drawing_canvas.bg
+            }
+        })
 
     def create_button(self, frame, image_path, command, tooltip_text, pack_side="left", pack_padx=(0, 5),
                       image_subsample=8):
@@ -60,42 +153,34 @@ class MainWindow(tk.Tk):
         """
         Создание кнопок для разных режимов программы.
         """
-        self.bg_button = self.create_button(self.buttons_frame, "Images//bg_image.png", lambda: self.modes_modifying('bg'),
+        self.bg_button = self.create_button(self.buttons_frame, "Images/bg_image.png", lambda: self.modes_modifying('bg'),
                                             "Фон \n Нажмите, чтобы изменить фон")
 
-        self.brush_button = self.create_button(self.buttons_frame, "Images//brush_image.png",
-                                               lambda: self.modes_modifying("brush"),
-                                               "Кисть \n Нажмите для перехода в режим кисти.")
-
-        self.eraser_button = self.create_button(self.buttons_frame, "Images//eraser_image.png",
-                                                lambda: self.modes_modifying("eraser"),
-                                                "Ластик \n Нажмите для перехода в режим ластика.")
-
-        self.fill_button = self.create_button(self.buttons_frame, "Images//fill_image.png",
+        self.fill_button = self.create_button(self.buttons_frame, "Images/fill_image.png",
                                               lambda: self.modes_modifying("fill"),
                                               "Заливка \n Нажмите, чтобы залить объект цветом.")
 
-        self.line_button = self.create_button(self.buttons_frame, "Images//line_image.png",
-                                                   lambda: self.modes_modifying("line"),
+        self.line_button = self.create_button(self.buttons_frame, "Images/line_image.png",
+                                              lambda: self.modes_modifying("line"),
                                                    "Линия \n Нажмите левую кнопку мыши и тяните для создания линии нужного размера.")
 
-        self.rectangle_button = self.create_button(self.buttons_frame, "Images//rectangle_image.png",
-                                                          lambda: self.modes_modifying("rectangle"),
+        self.rectangle_button = self.create_button(self.buttons_frame, "Images/rectangle_image.png",
+                                                   lambda: self.modes_modifying("rectangle"),
                                                           "Прямоугольник \n Нажмите левую кнопку мыши и тяните для создания фигуры нужного размера.")
 
-        self.oval_button = self.create_button(self.buttons_frame, "Images//oval_image.png",
-                                                     lambda: self.modes_modifying("oval"),
+        self.oval_button = self.create_button(self.buttons_frame, "Images/oval_image.png",
+                                              lambda: self.modes_modifying("oval"),
                                                      "Эллипс \n Нажмите левую кнопку мыши и тяните для создания фигуры нужного размера.")
 
-        self.triangle_button = self.create_button(self.buttons_frame, "Images//triangle_image.png",
-                                                  lambda: self.modes_modifying("triangle"),
+        self.polygon_button = self.create_button(self.buttons_frame, "Images/triangle_image.png",
+                                                  lambda: self.modes_modifying("polygon"),
                                                   "Треугольник \n Нажмите левую кнопку мыши и тяните для создания фигуры нужного размера.")
 
-        self.drag_button = self.create_button(self.buttons_frame, "Images//drag_image.png",
+        self.drag_button = self.create_button(self.buttons_frame, "Images/drag_image.png",
                                               lambda: self.modes_modifying("drag"),
                                               "Перемещение \n Нажмите, чтобы перетаскивать объекты на холсте.")
 
-        self.text_button = self.create_button(self.buttons_frame, "Images//text_image.png",
+        self.text_button = self.create_button(self.buttons_frame, "Images/text_image.png",
                                               lambda: self.modes_modifying("text"),
                                               "Текст \n Быстрое создание текстового блока.")
 
@@ -112,17 +197,7 @@ class MainWindow(tk.Tk):
         file_menu.add_command(label="Новый", command=self.file_manager.reset_canvas_dialog)
         file_menu.add_command(label="Сохранить", command=self.file_manager.save_to_file)
         file_menu.add_command(label="Загрузить", command=self.file_manager.load_from_file)
-        file_menu.add_command(label="Загрузить изображение", command=self.file_manager.open_image)
         file_menu.add_command(label="Экспортировать в JPEG", command=lambda: self.file_manager.export_to_graphic_file("JPEG"))
-
-        brush_tools_menu = tk.Menu(self.menu_bar, tearoff=0, background="light blue")
-        self.menu_bar.add_cascade(label="Кисть", menu=brush_tools_menu)
-        brush_tools_menu.add_command(label="Цвет", command=self.brush.choose_color)
-        brush_tools_menu.add_command(label="Размер", command=self.brush.set_thickness)
-
-        eraser_menu = tk.Menu(self.menu_bar, tearoff=0, background="light blue")
-        self.menu_bar.add_cascade(label='Ластик', menu=eraser_menu)
-        eraser_menu.add_command(label='Размер', command=self.drawing_canvas.change_eraser_size)
 
         text_box_tools = tk.Menu(self.menu_bar, tearoff=0, background="light blue")
         self.menu_bar.add_cascade(label='Текст', menu=text_box_tools)
@@ -131,35 +206,25 @@ class MainWindow(tk.Tk):
         text_box_tools.add_command(label='Размер', command=self.text_box.choose_text_size)
 
     def modes_modifying(self, mode: str) -> None:
-        """
-        Метод, отвечающий за переключение между режимами в программе.
-        """
+        """Метод для переключения режимов с синхронизацией с сервером"""
         self.drawing_canvas.clear_bindings()
         self.object_manipulator.unbind_objects()
 
         if self.active_button:
             self.active_button.config(bg=BUTTONS_BG)
 
-        if mode in ['line', 'rectangle', 'oval', 'triangle']:
+        if mode in ['line', 'rectangle', 'oval', 'polygon']:
             self.shapes.draw_shape_by_drag(mode)
             self.active_button = getattr(self, mode + '_button')
-
-
-        elif mode in ['brush', 'eraser', 'fill']:
-            getattr(self.drawing_canvas, 'set_mode')(mode)
-            self.active_button = getattr(self, mode + '_button')
-
-
+        elif mode in ['fill', 'none']:
+            self.drawing_canvas.set_mode(mode)
+            self.active_button = getattr(self, mode + '_button', None)
         elif mode == 'drag':
             self.object_manipulator.bind_objects()
             self.active_button = getattr(self, mode + '_button')
-
-
         elif mode == 'bg':
             self.drawing_canvas.change_bg()
             self.active_button = getattr(self, mode + '_button')
-
-
         elif mode == 'text':
             self.text_box.choose_text()
             self.active_button = getattr(self, mode + '_button')

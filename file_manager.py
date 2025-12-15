@@ -1,7 +1,6 @@
-from tkinter.simpledialog import askstring
 from tkinter import filedialog, messagebox
-from PIL import Image, ImageDraw, ImageFont, ImageTk
-from typing import Tuple, List, Dict, Any, Optional
+from PIL import Image, ImageDraw, ImageFont
+from typing import Tuple, List, Dict, Any
 import json
 from canvas import DrawingCanvas
 
@@ -11,12 +10,12 @@ class FileManager:
     Класс менеджера файлов, отвечает за сохранение и загрузку холста и изображений.
     """
 
-    def __init__(self, my_canvas: DrawingCanvas) -> None:
+    def __init__(self, canvas: DrawingCanvas) -> None:
         """
         Конструктор менеджера файлов.
         """
-        self.canvas = my_canvas
-        self.uploaded_images: Dict[int, Dict[str, Any]] = {}
+        self.canvas = canvas
+
 
     def objects_data_collector(self) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         """
@@ -24,26 +23,19 @@ class FileManager:
         для последующего восстановления.
         """
         items_data = []
-        images_data = []
 
         for item in self.canvas.canvas.find_all():
             item_tags = self.canvas.canvas.gettags(item)
             item_type = self.canvas.canvas.type(item)
             item_config = self.get_item_config(item, item_type)
 
-            if "image" in item_tags:
-                images_data.append({
-                    'image_id': item,
-                    'path': self.uploaded_images[item]['path'],
-                    'coords': self.canvas.canvas.coords(item)})
-            else:
-                items_data.append({
-                    'type': item_type,
-                    'coords': self.canvas.canvas.coords(item),
-                    'tags': item_tags,
-                    'config': item_config})
+            items_data.append({
+                'type': item_type,
+                'coords': self.canvas.canvas.coords(item),
+                'tags': item_tags,
+                'config': item_config})
 
-        return items_data, images_data
+        return items_data
 
     def get_item_config(self, item, item_type):
         """
@@ -62,13 +54,13 @@ class FileManager:
         Диалог сохранения файла.
         Сохраняет данные холста для продолжения редактирования позже.
         """
-        items_data, images_data = self.objects_data_collector()
+        items_data = self.objects_data_collector()
         file_path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
         if file_path:
 
             try:
                 with open(file_path, 'w') as file:
-                    json.dump({'drawings': items_data, 'images': images_data}, file, indent=4)
+                    json.dump({'drawings': items_data, 'background': self.canvas.bg}, file, indent=4)
                 messagebox.showinfo("Успех", "Холст успешно сохранён.")
 
             except Exception as error:
@@ -91,10 +83,14 @@ class FileManager:
                         items_data = json.load(file)
                     self.canvas.canvas.delete("all")
 
+                    if 'background' in items_data:
+                        self.canvas.update_background(items_data['background'])
+
                     for item_data in items_data.get('drawings', []):
                         self.create_item(item_data)
-                    for image_data in items_data.get('images', []):
-                        self.open_image(image_data['path'], image_data['coords'])
+
+                    # Отправляем изменения на сервер
+                    self._update_canvas_state()
 
                 except Exception as error:
                     messagebox.showerror("Ошибка", f"Не удалось загрузить данные холста. Ошибка: {error}")
@@ -109,81 +105,8 @@ class FileManager:
         config = item_data['config']
         config.pop('tags', None)
 
-        if item_type == "image":
-            self.open_image(item_data['path'], coords)
-
-        else:
-            if item_type in ['line', 'rectangle', 'oval', 'text', 'triangle']:
-                getattr(self.canvas.canvas, 'create_' + item_type)(coords, **config, tags=tags)
-
-    def open_image(self, file_path: Optional[str] = None, coords: Optional[Tuple[int, int]] = None) -> None:
-        """
-        Загружает изображение на холст.
-        Если путь не указан — открывает диалог выбора файла.
-        """
-        if coords is None:
-            coords = (200, 200)
-        if file_path is None:
-            file_path = filedialog.askopenfilename(filetypes=[("Image files", "*.png;*.jpg;*.jpeg;*.gif")])
-
-        if file_path:
-            image = Image.open(file_path)
-            original_size = image.size
-            max_size = (400, 400)
-            image.thumbnail(max_size, Image.LANCZOS)  # сохраняем пропорции
-            photo_image = ImageTk.PhotoImage(image)
-
-            image_id = self.canvas.canvas.create_image(*coords, image=photo_image, anchor='center',
-                                                       tags=("image", "movable"))
-            self.uploaded_images[image_id] = {
-                'photo_image': photo_image,
-                'path': file_path,
-                'size': image.size,
-                'original_size': original_size,
-                'rotation': 0,
-                'current_image': image.copy()
-            }
-
-    def image_manipulation(self, image_id: int, action: str) -> None:
-        """
-        Выполняет манипуляции (изменение размера, поворот, зеркалирование) над изображением.
-        """
-        if image_id not in self.uploaded_images:
-            return
-
-        image_info = self.uploaded_images[image_id]
-        current_image = image_info.get('current_image') or Image.open(image_info['path'])
-
-        if action == "resize":
-            size_input = askstring(
-                "Изменение размера",
-                f"Введите новый размер в формате 'ширина,высота' (текущий: {current_image.width}x{current_image.height}):"
-            )
-            if size_input:
-                try:
-                    width_str, height_str = size_input.split(",")
-                    new_width, new_height = int(width_str.strip()), int(height_str.strip())
-                    if 10 <= new_width <= 3000 and 10 <= new_height <= 3000:
-                        current_image = current_image.resize((new_width, new_height), Image.LANCZOS)
-                        image_info['size'] = (new_width, new_height)
-                    else:
-                        messagebox.showerror("Неверный размер", "Ширина и высота должны быть от 10 до 3000.")
-                        return
-                except (ValueError, AttributeError):
-                    messagebox.showerror("Неверный ввод", "Введите два целых числа, разделённых запятой.")
-                    return
-
-        elif action == "rotate":
-            image_info['rotation'] = (image_info['rotation'] + 90) % 360
-            current_image = current_image.rotate(-90, expand=True)
-
-        elif action == "mirror":
-            current_image = current_image.transpose(Image.FLIP_LEFT_RIGHT)
-
-        image_info['current_image'] = current_image
-        photo_image = ImageTk.PhotoImage(current_image)
-        self.canvas.canvas.itemconfig(image_id, image=photo_image)
-        image_info['photo_image'] = photo_image
+        if item_type in ['line', 'rectangle', 'oval', 'text', 'polygon']:
+            getattr(self.canvas.canvas, 'create_' + item_type)(coords, **config, tags=tags)
 
     def export_to_graphic_file(self, export_format: str) -> None:
         """
@@ -196,7 +119,7 @@ class FileManager:
         if not file_path:
             return
 
-        items_data, images_data = self.objects_data_collector()
+        items_data = self.objects_data_collector()
         canvas_width, canvas_height = self.canvas.canvas.winfo_width(), self.canvas.canvas.winfo_height()
         canvas_bg = self.canvas.canvas['background']
 
@@ -205,9 +128,6 @@ class FileManager:
 
         for item_data in items_data:
             self.draw_item_on_image(draw, item_data)
-
-        for image_data in images_data:
-            self.paste_image_on_image(pil_image, image_data)
 
         pil_image.save(file_path, format=export_format.upper())
 
@@ -241,32 +161,8 @@ class FileManager:
     def draw_oval(self, draw, coords: Tuple[int, int], config: Dict[str, Any]) -> None:
         draw.ellipse(coords, outline=config.get('outline'), fill=config.get('fill'))
 
-    def draw_triangle(self, draw, coords: Tuple[int, int], config: Dict[str, Any]) -> None:
+    def draw_polygon(self, draw, coords: Tuple[int, int], config: Dict[str, Any]) -> None:
         draw.polygon(coords, outline=config.get('outline'), fill=config.get('fill'))
-
-    def paste_image_on_image(self, image, image_data: Dict[str, Any]) -> None:
-        """
-        Копирует изображение с холста на объект PIL.Image.
-        """
-        image_attr = self.uploaded_images[image_data['image_id']]
-        image_path = image_data['path']
-        coords = image_data['coords']
-        image_size = image_attr['size']
-        rotation = image_attr['rotation']
-
-        try:
-            with Image.open(image_path) as img:
-
-                img.thumbnail(image_size)
-                if rotation != 0:
-                    img = img.rotate(rotation, expand=True)
-
-                img.mode == "RGBA"
-                paste_coords = (int(coords[0]), int(coords[1]))
-                image.paste(img, paste_coords)
-
-        except Exception as error:
-            messagebox.showerror("Ошибка", f"Не удалось загрузить изображение. Ошибка: {error}")
 
     def get_font_to_pil(self, font_str: str) -> Tuple:
         """
@@ -302,3 +198,25 @@ class FileManager:
         if response:
             self.save_to_file()
         self.canvas.reset_canvas()
+
+    def load_canvas_state(self, state: Dict[str, Any]) -> None:
+        """
+        Загружает состояние холста из переданных данных
+        """
+        self.canvas.reset_canvas()
+        self.canvas.update_background(state['background'])
+
+        for item_data in state['drawings']:
+            self.create_item(item_data)
+
+    def _update_canvas_state(self):
+        """Вспомогательный метод для отправки состояния холста"""
+        if hasattr(self.canvas.root, 'network') and self.canvas.root.network.connected:
+            items_data = self.objects_data_collector()
+            self.canvas.root.network.send({
+                'type': 'draw',
+                'data': {
+                    'drawings': items_data,
+                    'background': self.canvas.bg
+                }
+            })

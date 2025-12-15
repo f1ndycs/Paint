@@ -30,11 +30,12 @@ class Shapes:
         """
         Этот метод открывает диалог для изменения цвета контура фигуры.
         """
-        color_code = colorchooser.askcolor(title="Choose Color")
+        color_code = colorchooser.askcolor(title="Выбор цвета")
         if color_code[1]:
-
             if clicked_shape:
                 self.canvas.canvas.itemconfig(clicked_shape, outline=color_code[1])
+                # Отправляем изменения на сервер
+                self._update_canvas_state()
             else:
                 self.shape_color = color_code[1]
 
@@ -42,12 +43,13 @@ class Shapes:
         """
         Этот метод открывает диалог для изменения цвета заливки фигуры.
         """
-        color_code = colorchooser.askcolor(title="Choose Color")
+        color_code = colorchooser.askcolor(title="Выбор цвета")
         if color_code[1]:
 
             if clicked_shape:
                 self.canvas.canvas.itemconfig(clicked_shape, fill=color_code[1])
-
+                # Отправляем изменения на сервер
+                self._update_canvas_state()
             else:
                 self.fill_color = color_code[1]
 
@@ -63,7 +65,10 @@ class Shapes:
                       center_x + new_width / 2, center_y + new_height / 2]
         self.canvas.canvas.coords(clicked_shape, new_coords)
 
-    def change_specific_triangle(self, clicked_shape: int, new_width: float, new_height: float,
+        # Отправляем изменения на сервер
+        self._update_canvas_state()
+
+    def change_specific_polygon(self, clicked_shape: int, new_width: float, new_height: float,
                                  coords: List[float]) -> None:
         """
         Изменение размеров определённого треугольника на холсте.
@@ -78,6 +83,9 @@ class Shapes:
         new_coords = [coord for vertex in [vertex1, vertex2, vertex3] for coord in vertex]
         self.canvas.canvas.coords(clicked_shape, *new_coords)
 
+        # Отправляем изменения на сервер
+        self._update_canvas_state()
+
     def change_specific_line(self, clicked_shape: int, new_length: float, new_thickness: float,
                              coords: List[float]) -> None:
         """
@@ -90,6 +98,9 @@ class Shapes:
         y2_new = y1 + new_length * math.sin(angle)
         self.canvas.canvas.coords(clicked_shape, x1, y1, x2_new, y2_new)
         self.canvas.canvas.itemconfig(clicked_shape, width=new_thickness)
+
+        # Отправляем изменения на сервер
+        self._update_canvas_state()
 
     def set_shape_size(self, shape_type: str, clicked_shape: Optional[int] = None) -> None:
         """
@@ -131,7 +142,7 @@ class Shapes:
                         self.change_specific_oval_rectangle(clicked_shape, first_value, second_value, coords)
 
                     elif len(coords) == 6:
-                        self.change_specific_triangle(clicked_shape, first_value, second_value, coords)
+                        self.change_specific_polygon(clicked_shape, first_value, second_value, coords)
 
             size_dialog.destroy()
 
@@ -176,7 +187,7 @@ class Shapes:
         ok_button.pack(padx=10, pady=10)
 
     def draw_shape_by_drag(self, shape_type: str) -> None:
-        """Режим рисования фигур перетаскиванием (линия, прямоугольник, эллипс, треугольник)."""
+        """Локальный выбор инструмента фигур"""
         self.dragged_shape_name = shape_type
         self.canvas.canvas.bind("<ButtonPress-1>", self.on_press)
         self.canvas.canvas.bind("<B1-Motion>", self.on_drag)
@@ -187,7 +198,7 @@ class Shapes:
         self.start_x = event.x
         self.start_y = event.y
 
-        if self.dragged_shape_name == "triangle":
+        if self.dragged_shape_name == "polygon":
             self.dragged_shape = self.canvas.canvas.create_polygon(
                 self.start_x, self.start_y,
                 self.start_x + 1, self.start_y + 1,
@@ -211,7 +222,7 @@ class Shapes:
         if not self.dragged_shape:
             return
 
-        if self.dragged_shape_name == "triangle":
+        if self.dragged_shape_name == "polygon":
             width = event.x - self.start_x
             height = event.y - self.start_y
             top = (self.start_x, self.start_y)
@@ -236,4 +247,18 @@ class Shapes:
                 'type': self.dragged_shape_name,
                 'object': self.dragged_shape
             }
+            # Отправляем изменения на сервер
+            self._update_canvas_state()
         self.dragged_shape = None
+
+    def _update_canvas_state(self):
+        """Вспомогательный метод для отправки состояния холста"""
+        if hasattr(self.canvas.root, 'network') and self.canvas.root.network.connected:
+            items_data = self.canvas.root.file_manager.objects_data_collector()
+            self.canvas.root.network.send({
+                'type': 'draw',
+                'data': {
+                    'drawings': items_data,
+                    'background': self.canvas.bg
+                }
+            })
