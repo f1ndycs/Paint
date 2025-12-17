@@ -4,6 +4,7 @@ from typing import Tuple, List, Dict, Any
 import json
 from canvas import DrawingCanvas
 from localization import LocalizationManager
+from logger import logger
 
 
 class FileManager:
@@ -69,6 +70,12 @@ class FileManager:
             except Exception as error:
                 messagebox.showerror(_("error"), _("save_error").format(error=error))
 
+        try:
+            ...
+            logger.info(f"Холст сохранён: {file_path}")
+        except Exception as error:
+            logger.error(f"Ошибка сохранения: {error}")
+
     def load_from_file(self) -> None:
         """
         Загружает данные из файла и создаёт объекты на холсте для редактирования.
@@ -98,6 +105,8 @@ class FileManager:
 
                 except Exception as error:
                     messagebox.showerror(_("error"), _("load_error").format(error=error))
+
+        logger.info(f"Холст загружен: {file_path}")
 
     def create_item(self, item_data: Dict[str, Any]) -> None:
         """

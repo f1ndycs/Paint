@@ -3,6 +3,7 @@ from tkinter import simpledialog, colorchooser, font, messagebox
 from typing import Dict, Tuple, List, Optional, Any
 from canvas import DrawingCanvas
 from localization import LocalizationManager
+from logger import logger
 
 
 class TextBox:
@@ -57,7 +58,7 @@ class TextBox:
         if new_color:
             if clicked_text:
                 self.canvas.canvas.itemconfig(clicked_text, fill=new_color)
-                # Отправляем изменения на сервер
+                logger.info(f"Изменён цвет текста id={clicked_text} на {new_color}")
                 self._update_canvas_state()
             else:
                 self.update_color(new_color)
@@ -81,10 +82,11 @@ class TextBox:
                 font_attributes = self.text_font_sync(clicked_text)
                 font_attributes[1] = size
                 self.canvas.canvas.itemconfig(clicked_text, font=tuple(font_attributes))
-                # Отправляем изменения на сервер
+                logger.info(f"Изменён размер текста id={clicked_text} на {size}")
                 self._update_canvas_state()
             else:
                 self.font = (self.font[0], size)
+                logger.info(f"Установлен размер текста по умолчанию: {size}")
 
             top.destroy()
 
@@ -112,7 +114,12 @@ class TextBox:
             tags=("movable", "erasable", "text_box"))
         self.text_boxes[text_id] = {"text": self.text, "font": self.font, "fill": self.color}
         self.text_styles[text_id] = {"bold": False}
-        # Отправляем изменения на сервер
+
+        logger.info(
+            f"Создан текстовый блок id={text_id}, "
+            f"текст='{self.text}', шрифт={self.font}, цвет={self.color}"
+        )
+
         self._update_canvas_state()
 
     def split_text_font_attributes(self, clicked_text: int) -> Tuple[str, Optional[int], Optional[str], Optional[str]]:
@@ -167,7 +174,8 @@ class TextBox:
         font_attributes = self.text_font_sync(clicked_text)
 
         self.canvas.canvas.itemconfig(clicked_text, font=tuple(font_attributes))
-        # Отправляем изменения на сервер
+        logger.info(f"Изменён стиль текста id={clicked_text}: {style}")
+
         self._update_canvas_state()
 
     def choose_font_family(self, clicked_text: Optional[int] = None) -> None:
@@ -201,7 +209,7 @@ class TextBox:
             font_attributes = self.text_font_sync(clicked_text)
             font_attributes[0] = selected_font
             self.canvas.canvas.itemconfig(clicked_text, font=tuple(font_attributes))
-            # Отправляем изменения на сервер
+            logger.info(f"Изменён шрифт текста id={clicked_text} на '{selected_font}'")
             self._update_canvas_state()
         else:
             self.font = selected_font

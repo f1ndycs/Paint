@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import colorchooser, Scale, Button
 from typing import List, Tuple, Dict
 from localization import LocalizationManager
+from logger import logger
 
 
 class DrawingCanvas:
@@ -46,7 +47,7 @@ class DrawingCanvas:
         new_bg = colorchooser.askcolor(title=_("choose_background_color"))[1]
         if new_bg:
             self.update_background(new_bg)
-            # Отправляем изменения на сервер
+            logger.info(f"Изменён цвет фона холста: {new_bg}")
             self._update_canvas_state()
 
     def update_background(self, new_bg: str) -> None:
@@ -76,9 +77,11 @@ class DrawingCanvas:
 
             if 'shape' in item_tags or 'text_box' in item_tags:
                 self.canvas.itemconfig(item, fill=self.fill_color)
+                logger.info(f"Заливка объекта {item} цветом {self.fill_color}")
 
             else:
                 self.canvas.config(bg=self.fill_color)
+                logger.info(f"Заливка фона цветом {self.fill_color}")
 
         # Отправляем изменения на сервер
         self._update_canvas_state()
@@ -99,6 +102,8 @@ class DrawingCanvas:
         self.canvas.delete("all")
         self.canvas.config(bg="white")  # Устанавливаем белый фон
         self.bg = "white"  # Обновляем переменную фона
+
+        logger.info("Холст очищен")
 
         self.is_drawing = False
         self.start_x, self.start_y = None, None

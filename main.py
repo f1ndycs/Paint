@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import simpledialog
 from network import NetworkClient
 from localization import LocalizationManager
+from logger import logger
 
 
 BUTTONS_BG = 'white'
@@ -18,6 +19,7 @@ class MainWindow(tk.Tk):
         super().__init__()
         self.loc = loc
         self.loc.register(self)
+        logger.info("Приложение запущено")
         self.title('Сетевое приложение "Интерактивный графический редактор"')
         self.geometry("1000x600")
         self.tooltip_window = None
@@ -56,6 +58,12 @@ class MainWindow(tk.Tk):
 
     def connect_to_server(self):
         """Подключается к серверу и начинает получать обновления"""
+        if self.network.connected:
+            logger.info("Отключение от сервера")
+            ...
+        else:
+            logger.info("Попытка подключения к серверу")
+
         if self.network.connected:
             self.network.disconnect()
             self.network_button.config(text="Подключиться", bg=BUTTONS_BG)
@@ -297,6 +305,7 @@ class MainWindow(tk.Tk):
             self.tooltip_window = None
 
     def update_language(self):
+        logger.info(f"Смена языка на: {self.loc.current_lang}")
         _ = self.loc.gettext
 
         # Заголовок окна

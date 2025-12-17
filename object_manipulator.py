@@ -4,6 +4,7 @@ from shapes import Shapes
 from text_box import TextBox
 from typing import Dict, Any, Optional
 from localization import LocalizationManager
+from logger import logger
 
 MOVABLE_TAG = "movable"
 
@@ -142,6 +143,11 @@ class ObjectManipulator:
         Удаление выбранного элемента с холста.
         """
         if self.current_item:
+            logger.info(f"Удалён объект id={self.current_item}")
+            self.canvas.delete(self.current_item)
+            self._update_canvas_state()
+
+        if self.current_item:
             self.canvas.delete(self.current_item)
             # Отправляем изменения на сервер
             self._update_canvas_state()
@@ -165,6 +171,8 @@ class ObjectManipulator:
         """
         Событие при отпускании объекта — завершение перемещения.
         """
+        logger.info("Объект перемещён")
+
         self.drag_data["item"] = None
         self.drag_data["x"] = 0
         self.drag_data["y"] = 0
@@ -189,6 +197,8 @@ class ObjectManipulator:
         """
         Копирование объекта и его параметров в буфер обмена.
         """
+        logger.info(f"Скопирован объект id={item}, type={item_type}")
+
         config = self.get_item_config(item, item_type)
         self.clipboard = {
             'type': item_type,
@@ -214,6 +224,11 @@ class ObjectManipulator:
         """
         Вставка скопированного объекта.
         """
+        if not self.clipboard:
+            logger.warning("Попытка вставки без объекта в буфере")
+            return
+        logger.info("Объект вставлен из буфера")
+
         if not self.clipboard:
             return
 

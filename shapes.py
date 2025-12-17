@@ -3,6 +3,7 @@ import tkinter as tk
 from typing import Optional, List, Dict, Any
 from canvas import DrawingCanvas
 from localization import LocalizationManager
+from logger import logger
 
 
 class Shapes:
@@ -37,7 +38,12 @@ class Shapes:
         if color_code[1]:
             if clicked_shape:
                 self.canvas.canvas.itemconfig(clicked_shape, outline=color_code[1])
-                # Отправляем изменения на сервер
+
+                logger.info(
+                    f"Изменён цвет контура фигуры id={clicked_shape} "
+                    f"на {color_code[1]}"
+                )
+
                 self._update_canvas_state()
             else:
                 self.shape_color = color_code[1]
@@ -52,7 +58,12 @@ class Shapes:
 
             if clicked_shape:
                 self.canvas.canvas.itemconfig(clicked_shape, fill=color_code[1])
-                # Отправляем изменения на сервер
+
+                logger.info(
+                    f"Изменён цвет заливки фигуры id={clicked_shape} "
+                    f"на {color_code[1]}"
+                )
+
                 self._update_canvas_state()
             else:
                 self.fill_color = color_code[1]
@@ -69,7 +80,14 @@ class Shapes:
                       center_x + new_width / 2, center_y + new_height / 2]
         self.canvas.canvas.coords(clicked_shape, new_coords)
 
-        # Отправляем изменения на сервер
+        shape_type = self.drawn_shapes.get(clicked_shape, {}).get("type", "unknown")
+
+        logger.info(
+            f"Изменён размер фигуры "
+            f"type={shape_type}, id={clicked_shape}, "
+            f"ширина={int(new_width)}, высота={int(new_height)}"
+        )
+
         self._update_canvas_state()
 
     def change_specific_polygon(self, clicked_shape: int, new_width: float, new_height: float,
@@ -87,7 +105,14 @@ class Shapes:
         new_coords = [coord for vertex in [vertex1, vertex2, vertex3] for coord in vertex]
         self.canvas.canvas.coords(clicked_shape, *new_coords)
 
-        # Отправляем изменения на сервер
+        shape_type = self.drawn_shapes.get(clicked_shape, {}).get("type", "unknown")
+
+        logger.info(
+            f"Изменён размер фигуры "
+            f"type={shape_type}, id={clicked_shape}, "
+            f"ширина={int(new_width)}, высота={int(new_height)}"
+        )
+
         self._update_canvas_state()
 
     def change_specific_line(self, clicked_shape: int, new_length: float, new_thickness: float,
@@ -103,7 +128,14 @@ class Shapes:
         self.canvas.canvas.coords(clicked_shape, x1, y1, x2_new, y2_new)
         self.canvas.canvas.itemconfig(clicked_shape, width=new_thickness)
 
-        # Отправляем изменения на сервер
+        shape_type = self.drawn_shapes.get(clicked_shape, {}).get("type", "unknown")
+
+        logger.info(
+            f"Изменён размер фигуры "
+            f"type={shape_type}, id={clicked_shape}, "
+            f"длина={int(new_length)}, толщина={int(new_thickness)}"
+        )
+
         self._update_canvas_state()
 
     def set_shape_size(self, shape_type: str, clicked_shape: Optional[int] = None) -> None:
@@ -252,7 +284,13 @@ class Shapes:
                 'type': self.dragged_shape_name,
                 'object': self.dragged_shape
             }
-            # Отправляем изменения на сервер
+
+            logger.info(
+                f"Создана фигура: "
+                f"type={self.dragged_shape_name}, "
+                f"id={self.dragged_shape}"
+            )
+
             self._update_canvas_state()
         self.dragged_shape = None
 
