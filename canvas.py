@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import colorchooser, Scale, Button
 from typing import List, Tuple, Dict
+from localization import LocalizationManager
 
 
 class DrawingCanvas:
@@ -9,10 +10,11 @@ class DrawingCanvas:
     Обрабатывает создание простых линий и стирание объектов.
     """
 
-    def __init__(self, master, width: int, height: int, bg: str = "white", mode: str = 'drag') -> None:
+    def __init__(self, master, loc: LocalizationManager, width: int, height: int, bg: str = "white", mode: str = 'drag') -> None:
         """
         Конструктор объекта холста.
         """
+        self.loc = loc
         self.root = master
         self.canvas = tk.Canvas(self.root, width=width, height=height, bg=bg, highlightthickness=0)
         self.canvas.pack(fill=tk.BOTH, expand=True)
@@ -40,7 +42,8 @@ class DrawingCanvas:
 
     def change_bg(self) -> None:
         """Открывает диалог выбора цвета фона холста."""
-        new_bg = colorchooser.askcolor(title="Выбор цвета фона")[1]
+        _ = self.loc.gettext
+        new_bg = colorchooser.askcolor(title=_("choose_background_color"))[1]
         if new_bg:
             self.update_background(new_bg)
             # Отправляем изменения на сервер
@@ -82,10 +85,11 @@ class DrawingCanvas:
 
     def set_mode(self, mode: str) -> None:
         """"""
+        _ = self.loc.gettext
         self.mode = mode
 
         if mode == 'fill':
-            self.fill_color = colorchooser.askcolor(title="Выбор цвета заливки")[1]
+            self.fill_color = colorchooser.askcolor(title=_("choose_fill_color"))[1]
             self.canvas.bind("<Button-1>", self.fill_with_color)
 
     def reset_canvas(self, notify: bool = True) -> None:

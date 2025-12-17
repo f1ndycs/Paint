@@ -2,6 +2,7 @@ from tkinter import colorchooser, Button, messagebox, Entry, Label
 import tkinter as tk
 from typing import Optional, List, Dict, Any
 from canvas import DrawingCanvas
+from localization import LocalizationManager
 
 
 class Shapes:
@@ -10,10 +11,11 @@ class Shapes:
     в программе для иллюстраций.
     """
 
-    def __init__(self, canvas: DrawingCanvas):
+    def __init__(self, canvas: DrawingCanvas, loc: LocalizationManager):
         """
         Конструктор класса фигур.
         """
+        self.loc = loc
         self.canvas = canvas
         self.current_shape: Optional[str] = None
         self.shape_color = "black"
@@ -30,7 +32,8 @@ class Shapes:
         """
         Этот метод открывает диалог для изменения цвета контура фигуры.
         """
-        color_code = colorchooser.askcolor(title="Выбор цвета")
+        _ = self.loc.gettext
+        color_code = colorchooser.askcolor(title=_("choose_color"))
         if color_code[1]:
             if clicked_shape:
                 self.canvas.canvas.itemconfig(clicked_shape, outline=color_code[1])
@@ -43,7 +46,8 @@ class Shapes:
         """
         Этот метод открывает диалог для изменения цвета заливки фигуры.
         """
-        color_code = colorchooser.askcolor(title="Выбор цвета")
+        _ = self.loc.gettext
+        color_code = colorchooser.askcolor(title=_("choose_color"))
         if color_code[1]:
 
             if clicked_shape:
@@ -107,6 +111,7 @@ class Shapes:
         Открытие диалога для изменения ширины и высоты (для фигур)
         или длины и толщины (для линий).
         """
+        _ = self.loc.gettext
 
         def update_shape_size(event=None) -> None:
             width_height_str = entry.get()
@@ -115,7 +120,7 @@ class Shapes:
                 first_value = int(width_str)
                 second_value = int(height_str)
             except ValueError:
-                messagebox.showerror("Неверный ввод", "Введите два целых числа, разделённых запятой.")
+                messagebox.showerror(_("error"), _("invalid_two_numbers"))
                 return
 
             if clicked_shape:
@@ -124,10 +129,10 @@ class Shapes:
                 if shape_type == "line":
                     # Ограничения для линии
                     if not (1 <= second_value <= 10):
-                        messagebox.showerror("Неверная толщина", "Толщина линии должна быть от 1 до 10.")
+                        messagebox.showerror(_("error"), _("line_thickness_error"))
                         return
                     if first_value < 10 or first_value > 3000:
-                        messagebox.showerror("Неверная длина", "Длина линии должна быть от 1 до 3000.")
+                        messagebox.showerror(_("error"), _("line_length_error"))
                         return
 
                     self.change_specific_line(clicked_shape, first_value, second_value, coords)
@@ -135,7 +140,7 @@ class Shapes:
                 else:
                     # Ограничения для фигур
                     if not (10 <= first_value <= 3000) or not (10 <= second_value <= 3000):
-                        messagebox.showerror("Неверный размер", "Ширина и высота должны быть от 10 до 3000.")
+                        messagebox.showerror(_("error"), _("shape_size_error"))
                         return
 
                     if len(coords) == 4:
@@ -147,7 +152,7 @@ class Shapes:
             size_dialog.destroy()
 
         size_dialog = tk.Toplevel()
-        size_dialog.title("Изменение размеров фигуры")
+        size_dialog.title(_("resize_shape"))
 
         coords = self.canvas.canvas.coords(clicked_shape)
 
@@ -155,7 +160,7 @@ class Shapes:
             x1, y1, x2, y2 = coords
             current_length = ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
             current_thickness = self.canvas.canvas.itemcget(clicked_shape, "width")
-            entry_hint = "Введите длину и толщину, разделённые запятой (пример: 150,3)"
+            entry_hint = _("line_size_hint")
             current_values = f"{int(current_length)},{int(float(current_thickness))}"
 
         else:
@@ -168,13 +173,13 @@ class Shapes:
             else:
                 width = height = 0
 
-            entry_hint = "Введите ширину и высоту, разделённые запятой (пример: 100,200)"
+            entry_hint = _("shape_size_hint")
             current_values = f"{int(width)},{int(height)}"
 
         hint_label = Label(size_dialog, text=entry_hint)
         hint_label.pack(padx=10, pady=(10, 5))
 
-        current_label = Label(size_dialog, text=f"Текущие: {current_values}")
+        current_label = Label(size_dialog, text=f"{_('current_values')}: {current_values}")
         current_label.pack(padx=10, pady=(0, 5))
 
         entry = Entry(size_dialog, width=30)

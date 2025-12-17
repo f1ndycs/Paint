@@ -6,14 +6,18 @@ from object_manipulator import ObjectManipulator
 import tkinter as tk
 from tkinter import simpledialog
 from network import NetworkClient
+from localization import LocalizationManager
+
 
 BUTTONS_BG = 'white'
 FRAME_BG = 'light blue'
 
 
 class MainWindow(tk.Tk):
-    def __init__(self):
+    def __init__(self, loc: LocalizationManager):
         super().__init__()
+        self.loc = loc
+        self.loc.register(self)
         self.title('Сетевое приложение "Интерактивный графический редактор"')
         self.geometry("1000x600")
         self.tooltip_window = None
@@ -33,11 +37,11 @@ class MainWindow(tk.Tk):
         self.network = NetworkClient()
 
         # Остальная инициализация
-        self.drawing_canvas = DrawingCanvas(self, width=800, height=600)
-        self.file_manager = FileManager(self.drawing_canvas)
-        self.text_box = TextBox(self.drawing_canvas)
-        self.shapes = Shapes(self.drawing_canvas)
-        self.object_manipulator = ObjectManipulator(self.drawing_canvas, self.text_box, self.shapes)
+        self.drawing_canvas = DrawingCanvas(self, self.loc, width=800, height=600)
+        self.file_manager = FileManager(self.drawing_canvas, self.loc)
+        self.text_box = TextBox(self.drawing_canvas, self.loc)
+        self.shapes = Shapes(self.drawing_canvas, self.loc)
+        self.object_manipulator = ObjectManipulator(self.drawing_canvas, self.text_box, self.shapes, self.loc)
 
         self.tools_widgets()
         self.buttons_widgets()
@@ -154,35 +158,35 @@ class MainWindow(tk.Tk):
         Создание кнопок для разных режимов программы.
         """
         self.bg_button = self.create_button(self.buttons_frame, "Images/bg_image.png", lambda: self.modes_modifying('bg'),
-                                            "Фон \n Нажмите, чтобы изменить фон")
+                                            "tooltip_bg")
 
         self.fill_button = self.create_button(self.buttons_frame, "Images/fill_image.png",
                                               lambda: self.modes_modifying("fill"),
-                                              "Заливка \n Нажмите, чтобы залить объект цветом.")
+                                              "tooltip_fill")
 
         self.line_button = self.create_button(self.buttons_frame, "Images/line_image.png",
                                               lambda: self.modes_modifying("line"),
-                                                   "Линия \n Нажмите левую кнопку мыши и тяните для создания линии нужного размера.")
+                                                   "tooltip_line")
 
         self.rectangle_button = self.create_button(self.buttons_frame, "Images/rectangle_image.png",
                                                    lambda: self.modes_modifying("rectangle"),
-                                                          "Прямоугольник \n Нажмите левую кнопку мыши и тяните для создания фигуры нужного размера.")
+                                                          "tooltip_rectangle")
 
         self.oval_button = self.create_button(self.buttons_frame, "Images/oval_image.png",
                                               lambda: self.modes_modifying("oval"),
-                                                     "Эллипс \n Нажмите левую кнопку мыши и тяните для создания фигуры нужного размера.")
+                                                     "tooltip_oval")
 
         self.polygon_button = self.create_button(self.buttons_frame, "Images/triangle_image.png",
                                                   lambda: self.modes_modifying("polygon"),
-                                                  "Треугольник \n Нажмите левую кнопку мыши и тяните для создания фигуры нужного размера.")
+                                                  "tooltip_polygon")
 
         self.drag_button = self.create_button(self.buttons_frame, "Images/drag_image.png",
                                               lambda: self.modes_modifying("drag"),
-                                              "Перемещение \n Нажмите, чтобы перетаскивать объекты на холсте.")
+                                              "tooltip_drag")
 
         self.text_button = self.create_button(self.buttons_frame, "Images/text_image.png",
                                               lambda: self.modes_modifying("text"),
-                                              "Текст \n Быстрое создание текстового блока.")
+                                              "tooltip_text")
 
     def tools_widgets(self) -> None:
         """
@@ -192,18 +196,37 @@ class MainWindow(tk.Tk):
         self.menu_bar = tk.Menu(self)
         self.config(menu=self.menu_bar)
 
-        file_menu = tk.Menu(self.menu_bar, tearoff=0, background="light blue")
-        self.menu_bar.add_cascade(label="Файл", menu=file_menu)
-        file_menu.add_command(label="Новый", command=self.file_manager.reset_canvas_dialog)
-        file_menu.add_command(label="Сохранить", command=self.file_manager.save_to_file)
-        file_menu.add_command(label="Загрузить", command=self.file_manager.load_from_file)
-        file_menu.add_command(label="Экспортировать в JPEG", command=lambda: self.file_manager.export_to_graphic_file("JPEG"))
+        self.file_menu = tk.Menu(self.menu_bar, tearoff=0, background="light blue")
+        self.menu_bar.add_cascade(label="Файл", menu=self.file_menu)
+        self.file_menu.add_command(label="Новый", command=self.file_manager.reset_canvas_dialog)
+        self.file_menu.add_command(label="Сохранить", command=self.file_manager.save_to_file)
+        self.file_menu.add_command(label="Загрузить", command=self.file_manager.load_from_file)
+        self.file_menu.add_command(label="Экспортировать в JPEG", command=lambda: self.file_manager.export_to_graphic_file("JPEG"))
 
-        text_box_tools = tk.Menu(self.menu_bar, tearoff=0, background="light blue")
-        self.menu_bar.add_cascade(label='Текст', menu=text_box_tools)
-        text_box_tools.add_command(label='Шрифт', command=self.text_box.choose_font_family)
-        text_box_tools.add_command(label='Цвет', command=self.text_box.choose_text_color)
-        text_box_tools.add_command(label='Размер', command=self.text_box.choose_text_size)
+        self.text_menu = tk.Menu(self.menu_bar, tearoff=0, background="light blue")
+        self.menu_bar.add_cascade(label="Текст", menu=self.text_menu)
+        self.text_menu.add_command(label="Шрифт", command=self.text_box.choose_font_family)
+        self.text_menu.add_command(label="Цвет", command=self.text_box.choose_text_color)
+        self.text_menu.add_command(label="Размер", command=self.text_box.choose_text_size)
+
+        self.settings_menu = tk.Menu(self.menu_bar, tearoff=0, background="light blue")
+        self.menu_bar.add_cascade(label="Настройки", menu=self.settings_menu)
+
+        self.language_menu = tk.Menu(self.settings_menu, tearoff=0)
+        self.settings_menu.add_cascade(label="Язык", menu=self.language_menu)
+
+        self.language_menu.add_command(
+            label="Русский",
+            command=lambda: self.loc.set_language("ru")
+        )
+        self.language_menu.add_command(
+            label="Английский",
+            command=lambda: self.loc.set_language("en")
+        )
+        self.language_menu.add_command(
+            label="Белорусский",
+            command=lambda: self.loc.set_language("by")
+        )
 
     def modes_modifying(self, mode: str) -> None:
         """Метод для переключения режимов с синхронизацией с сервером"""
@@ -232,15 +255,18 @@ class MainWindow(tk.Tk):
         if self.active_button:
             self.active_button.config(bg='gray')
 
-    def create_tooltip(self, widget, text: str) -> None:
+    def create_tooltip(self, widget, text_key: str) -> None:
         """
         Прикрепляет всплывающую подсказку к виджету.
         """
 
-        def on_enter(event, self=self, text=text, widget=widget):
+        widget.tooltip_key = text_key
+
+        def on_enter(event):
+            text = self.loc.gettext(widget.tooltip_key)
             self.show_tooltip(text, widget)
 
-        def on_leave(event, self=self):
+        def on_leave(event):
             self.hide_tooltip()
 
         widget.bind("<Enter>", on_enter)
@@ -270,7 +296,44 @@ class MainWindow(tk.Tk):
             self.tooltip_window.destroy()
             self.tooltip_window = None
 
+    def update_language(self):
+        _ = self.loc.gettext
+
+        # Заголовок окна
+        self.title(_("app_title"))
+
+        # Кнопка подключения
+        self.network_button.config(
+            text=_("disconnect") if self.network.connected else _("connect")
+        )
+
+        self.menu_bar.delete(0, "end")
+
+        self.menu_bar.add_cascade(label=_("file"), menu=self.file_menu)
+        self.menu_bar.add_cascade(label=_("text"), menu=self.text_menu)
+        self.menu_bar.add_cascade(label=_("settings"), menu=self.settings_menu)
+
+        # Пункты меню Файл
+        self.file_menu.entryconfig(0, label=_("new"))
+        self.file_menu.entryconfig(1, label=_("save"))
+        self.file_menu.entryconfig(2, label=_("load"))
+        self.file_menu.entryconfig(3, label=_("export_jpeg"))
+
+        # Пункты меню Текст
+        self.text_menu.entryconfig(0, label=_("font"))
+        self.text_menu.entryconfig(1, label=_("color"))
+        self.text_menu.entryconfig(2, label=_("size"))
+
+        # Настройки → Язык
+        self.settings_menu.entryconfig(0, label=_("language"))
+
+        # Языки
+        self.language_menu.entryconfig(0, label=_("ru"))
+        self.language_menu.entryconfig(1, label=_("en"))
+        self.language_menu.entryconfig(2, label=_("by"))
+
 
 if __name__ == '__main__':
-    app = MainWindow()
+    loc = LocalizationManager()
+    app = MainWindow(loc)
     app.mainloop()

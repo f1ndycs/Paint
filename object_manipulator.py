@@ -3,6 +3,7 @@ from canvas import DrawingCanvas
 from shapes import Shapes
 from text_box import TextBox
 from typing import Dict, Any, Optional
+from localization import LocalizationManager
 
 MOVABLE_TAG = "movable"
 
@@ -13,10 +14,13 @@ class ObjectManipulator:
     удаление, перемещение и специальные функции для каждого типа объекта.
     """
 
-    def __init__(self, canvas: DrawingCanvas, text_box: TextBox, shapes: Shapes) -> None:
+    def __init__(self, canvas: DrawingCanvas, text_box: TextBox, shapes: Shapes, loc: LocalizationManager) -> None:
         """
         Конструктор класса ObjectManipulator.
         """
+        self.loc = loc
+        _ = self.loc.gettext
+
         self.canvas = canvas.canvas
         self.drawing_canvas = canvas
         self.text_box = text_box
@@ -29,7 +33,7 @@ class ObjectManipulator:
         self.current_item: Optional[Any] = None
 
         self.small_menu = tk.Menu(self.canvas, tearoff=0)
-        self.small_menu.add_command(label="Удалить", command=self.remove_item)
+        self.small_menu.add_command(label=_("delete"), command=self.remove_item)
         self.canvas.bind("<Button-3>", self.right_click_menu)
 
     def bind_objects(self) -> None:
@@ -68,6 +72,7 @@ class ObjectManipulator:
         """
         Отображение контекстного меню при правом клике по объекту.
         """
+        _ = self.loc.gettext
         self.small_menu.delete(0, tk.END)
         closest_item = self.canvas.find_closest(event.x, event.y, halo=1)[0]
 
@@ -79,19 +84,19 @@ class ObjectManipulator:
             if bbox and bbox[0] <= event.x <= bbox[2] and bbox[1] <= event.y <= bbox[3]:
                 self.current_item = closest_item
 
-                self.small_menu.add_command(label="Удалить", command=self.remove_item)
-                self.small_menu.add_command(label="Переместить наверх",
+                self.small_menu.add_command(label=_("delete"), command=self.remove_item)
+                self.small_menu.add_command(label=_("move_up"),
                                             command=lambda: self.raise_or_lower_item(closest_item, 'raise'))
-                self.small_menu.add_command(label="Переместить вниз",
+                self.small_menu.add_command(label=_("move_down"),
                                             command=lambda: self.raise_or_lower_item(closest_item, 'lower'))
-                self.small_menu.add_command(label="Копировать",
+                self.small_menu.add_command(label=_("copy"),
                                             command=lambda: self.copy_object(closest_item, item_type))
 
                 if "shape" in item_tags:
                     self.shape_options_menu(closest_item, item_type)
 
                     if item_type in ['rectangle', 'oval', 'polygon']:
-                        self.small_menu.add_command(label="Изменить цвет контура",
+                        self.small_menu.add_command(label=_("outline_color"),
                                                     command=lambda: self.shapes.set_shape_color(closest_item))
 
                 elif "text_box" in item_tags:
@@ -105,22 +110,25 @@ class ObjectManipulator:
         self.small_menu.post(event.x_root, event.y_root)
 
     def text_options_menu(self, closest_item: int) -> None:
-        self.small_menu.add_command(label="Жирный", command=lambda: self.text_box.change_text_style(closest_item, 'bold'))
-        self.small_menu.add_command(label="Изменить размер текста",
+        _ = self.loc.gettext
+        self.small_menu.add_command(label=_("bold"), command=lambda: self.text_box.change_text_style(closest_item, 'bold'))
+        self.small_menu.add_command(label=_("text_size"),
                                     command=lambda: self.text_box.choose_text_size(closest_item))
-        self.small_menu.add_command(label="Изменить цвет текста",
+        self.small_menu.add_command(label=_("text_color"),
                                     command=lambda: self.text_box.choose_text_color(closest_item))
-        self.small_menu.add_command(label="Изменить шрифт",
+        self.small_menu.add_command(label=_("text_font"),
                                     command=lambda: self.text_box.choose_font_family(closest_item))
 
     def shape_options_menu(self, closest_item: int, item_type: str) -> None:
-        self.small_menu.add_command(label="Изменить размер фигуры",
+        _ = self.loc.gettext
+        self.small_menu.add_command(label=_("shape_size"),
                                     command=lambda: self.shapes.set_shape_size(item_type, closest_item))
-        self.small_menu.add_command(label="Изменить цвет заливки", command=lambda: self.shapes.set_fill_color(closest_item))
+        self.small_menu.add_command(label=_("fill_color"), command=lambda: self.shapes.set_fill_color(closest_item))
 
     def background_options_menu(self) -> None:
-        self.small_menu.add_command(label="Вставить", command=self.paste_object)
-        self.small_menu.add_command(label="Изменить фон", command=self.drawing_canvas.change_bg)
+        _ = self.loc.gettext
+        self.small_menu.add_command(label=_("paste"), command=self.paste_object)
+        self.small_menu.add_command(label=_("change_bg"), command=self.drawing_canvas.change_bg)
 
     def remove_item(self) -> None:
         """

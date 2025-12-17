@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import simpledialog, colorchooser, font, messagebox
 from typing import Dict, Tuple, List, Optional, Any
 from canvas import DrawingCanvas
+from localization import LocalizationManager
 
 
 class TextBox:
@@ -9,11 +10,12 @@ class TextBox:
     Класс, отвечающий за создание и редактирование текстовых блоков.
     """
 
-    def __init__(self, canvas: DrawingCanvas, index_x: int = 500, index_y: int = 200, text: str = "Text",
+    def __init__(self, canvas: DrawingCanvas, loc: LocalizationManager, index_x: int = 500, index_y: int = 200, text: str = "Text",
                  font: Tuple = ("Helvetica", 14), color: str = "black"):
         """
         Конструктор класса текстового блока.
         """
+        self.loc = loc
         self.canvas = canvas
         self.x = index_x
         self.y = index_y
@@ -40,7 +42,8 @@ class TextBox:
         """
         Метод открывает диалог для ввода нового текста.
         """
-        new_text = simpledialog.askstring("Создание текста", "Введите текст:", parent=self.canvas.canvas)
+        _ = self.loc.gettext
+        new_text = simpledialog.askstring(_("create_text"), _("enter_text"), parent=self.canvas.canvas)
         if new_text:
             self.update_text(new_text)
             self.create_text_box()
@@ -49,7 +52,8 @@ class TextBox:
         """
         Метод открывает диалог для изменения цвета текста.
         """
-        new_color = colorchooser.askcolor(title="Выбор цвета текста")[1]
+        _ = self.loc.gettext
+        new_color = colorchooser.askcolor(title=_("choose_text_color"))[1]
         if new_color:
             if clicked_text:
                 self.canvas.canvas.itemconfig(clicked_text, fill=new_color)
@@ -62,6 +66,7 @@ class TextBox:
         """
         Метод открывает пользовательское окно ввода размера шрифта с проверкой.
         """
+        _ = self.loc.gettext
 
         def apply_size():
             try:
@@ -69,7 +74,7 @@ class TextBox:
                 if not (1 <= size <= 400):
                     raise ValueError
             except ValueError:
-                messagebox.showerror("Ошибка", "Введите целое число от 1 до 400.")
+                messagebox.showerror(_("error"), _("text_size_error"))
                 return
 
             if clicked_text:
@@ -84,15 +89,15 @@ class TextBox:
             top.destroy()
 
         top = tk.Toplevel(self.canvas.canvas)
-        top.title("Размер текста")
+        top.title(_("size_text"))
         top.grab_set()  # Блокирует остальные окна
 
-        tk.Label(top, text="Введите размер текста (1–400):").pack(padx=10, pady=5)
+        tk.Label(top, text=_("enter_text_size")).pack(padx=10, pady=5)
         entry = tk.Entry(top)
         entry.pack(padx=10, pady=5)
         entry.insert(0, str(self.font[1] if not clicked_text else self.split_text_font_attributes(clicked_text)[1]))
 
-        tk.Button(top, text="Применить", command=apply_size).pack(pady=10)
+        tk.Button(top, text="OK", command=apply_size).pack(pady=10)
 
     def create_text_box(self) -> None:
         """
@@ -169,8 +174,9 @@ class TextBox:
         """
         Метод открывает окно с полосой прокрутки для выбора шрифта.
         """
+        _ = self.loc.gettext
         self.font_window = tk.Toplevel(self.canvas.canvas)
-        self.font_window.title("Выбор шрифта")
+        self.font_window.title(_("choose_font"))
 
         self.font_listbox = tk.Listbox(self.font_window)
         self.font_listbox.pack(side="right", fill="both", expand=True)

@@ -1,0 +1,87 @@
+{
+  "app_title": "Network application \"Interactive graphic editor\"",
+  "file": "File",
+  "text": "Text",
+  "settings": "Settings",
+  "language": "Language",
+
+  "new": "New",
+  "save": "Save",
+  "load": "Load",
+  "export_jpeg": "Export to JPEG",
+
+  "font": "Font",
+  "color": "Color",
+  "size": "Size",
+
+  "connect": "Connect",
+  "disconnect": "Disconnect",
+
+  "ru": "Russian",
+  "en": "English",
+  "by": "Belarusian",
+
+  "tooltip_bg": "Background\nClick to change background",
+  "tooltip_fill": "Fill\nClick to fill object with color",
+  "tooltip_line": "Line\nHold LMB and drag to draw",
+  "tooltip_rectangle": "Rectangle\nHold LMB and drag",
+  "tooltip_oval": "Ellipse\nHold LMB and drag",
+  "tooltip_polygon": "Triangle\nHold LMB and drag",
+  "tooltip_drag": "Move\nDrag objects on canvas",
+  "tooltip_text": "Text\nCreate a text box",
+
+  "delete": "Delete",
+  "move_up": "Move up",
+  "move_down": "Move down",
+  "copy": "Copy",
+
+  "bold": "Bold",
+  "text_size": "Change text size",
+  "text_color": "Change text color",
+  "text_font": "Change font",
+
+  "shape_size": "Change shape size",
+  "fill_color": "Change fill color",
+  "outline_color": "Change outline color",
+
+  "paste": "Paste",
+  "change_bg": "Change background",
+
+  "success": "Success",
+  "error": "Error",
+  "confirmation": "Confirmation",
+
+  "canvas_saved": "Canvas successfully saved.",
+  "save_error": "Failed to save canvas. Error: {error}",
+  "load_error": "Failed to load canvas data. Error: {error}",
+
+  "save_before_load": "Save the current canvas?",
+  "save_before_clear": "Save the current canvas before clearing?",
+
+  "choose_background_color": "Choose background color",
+  "choose_fill_color": "Choose fill color",
+
+  "choose_color": "Choose color",
+
+  "invalid_two_numbers": "Enter two integers separated by a comma.",
+  "line_thickness_error": "Line thickness must be between 1 and 10.",
+  "line_length_error": "Line length must be between 1 and 3000.",
+  "shape_size_error": "Width and height must be between 10 and 3000.",
+
+  "resize_shape": "Resize shape",
+  "line_size_hint": "Enter length and thickness separated by comma (example: 150,3)",
+  "shape_size_hint": "Enter width and height separated by comma (example: 100,200)",
+  "current_values": "Current",
+
+  "create_text": "Create text",
+  "enter_text": "Enter text:",
+  "choose_text_color": "Choose text color",
+
+  "text_size_error": "Enter an integer from 1 to 400.",
+
+  "size_text": "Text size",
+  "enter_text_size": "Enter text size (1–400):",
+  "apply": "Apply",
+
+  "choose_font": "Choose font"
+}

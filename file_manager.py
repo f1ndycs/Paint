@@ -3,6 +3,7 @@ from PIL import Image, ImageDraw, ImageFont
 from typing import Tuple, List, Dict, Any
 import json
 from canvas import DrawingCanvas
+from localization import LocalizationManager
 
 
 class FileManager:
@@ -10,10 +11,11 @@ class FileManager:
     Класс менеджера файлов, отвечает за сохранение и загрузку холста и изображений.
     """
 
-    def __init__(self, canvas: DrawingCanvas) -> None:
+    def __init__(self, canvas: DrawingCanvas, loc: LocalizationManager) -> None:
         """
         Конструктор менеджера файлов.
         """
+        self.loc = loc
         self.canvas = canvas
 
 
@@ -54,6 +56,7 @@ class FileManager:
         Диалог сохранения файла.
         Сохраняет данные холста для продолжения редактирования позже.
         """
+        _ = self.loc.gettext
         items_data = self.objects_data_collector()
         file_path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
         if file_path:
@@ -61,16 +64,17 @@ class FileManager:
             try:
                 with open(file_path, 'w') as file:
                     json.dump({'drawings': items_data, 'background': self.canvas.bg}, file, indent=4)
-                messagebox.showinfo("Успех", "Холст успешно сохранён.")
+                messagebox.showinfo(_("success"), _("canvas_saved"))
 
             except Exception as error:
-                messagebox.showerror("Ошибка", f"Не удалось сохранить холст. Ошибка: {error}")
+                messagebox.showerror(_("error"), _("save_error").format(error=error))
 
     def load_from_file(self) -> None:
         """
         Загружает данные из файла и создаёт объекты на холсте для редактирования.
         """
-        response = messagebox.askokcancel("Подтверждение", "Сохранить текущий холст?")
+        _ = self.loc.gettext
+        response = messagebox.askokcancel(_("confirmation"), _("save_before_load"))
         if response:
             self.save_to_file()
 
@@ -93,7 +97,7 @@ class FileManager:
                     self._update_canvas_state()
 
                 except Exception as error:
-                    messagebox.showerror("Ошибка", f"Не удалось загрузить данные холста. Ошибка: {error}")
+                    messagebox.showerror(_("error"), _("load_error").format(error=error))
 
     def create_item(self, item_data: Dict[str, Any]) -> None:
         """
@@ -194,7 +198,8 @@ class FileManager:
         """
         Открывает диалог сохранения перед очисткой холста.
         """
-        response = messagebox.askokcancel("Подтверждение", "Сохранить текущий холст перед очисткой?")
+        _ = self.loc.gettext
+        response = messagebox.askokcancel(_("confirmation"), _("save_before_clear"))
         if response:
             self.save_to_file()
         self.canvas.reset_canvas()
