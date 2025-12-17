@@ -74,7 +74,14 @@ class ObjectManipulator:
         """
         _ = self.loc.gettext
         self.small_menu.delete(0, tk.END)
-        closest_item = self.canvas.find_closest(event.x, event.y, halo=1)[0]
+        items = self.canvas.find_closest(event.x, event.y, halo=1)
+
+        if not items:
+            self.background_options_menu()
+            self.small_menu.post(event.x_root, event.y_root)
+            return
+
+        closest_item = items[0]
 
         if closest_item is not None:
             item_tags = self.canvas.gettags(closest_item)
