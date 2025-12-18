@@ -61,7 +61,6 @@ class MainWindow(tk.Tk):
 
     def connect_to_server(self):
         """Подключается к серверу и начинает получать обновления"""
-        # Если уже подключены — отключаемся
         if self.network.connected:
             logger.info("Отключение от сервера")
             self.network.disconnect()
@@ -71,20 +70,26 @@ class MainWindow(tk.Tk):
             )
             return
 
-        # Проверка, запущен ли сервер
-        if not self.network.can_connect():
-            logger.warning("Сервер недоступен")
-            messagebox.showerror(
-                self.loc.gettext("connection_error"),
-                self.loc.gettext("server_not_running")
-            )
-            return
-
         logger.info("Подключение к серверу")
 
         self.network = NetworkClient()
-        self.network.connect(self.handle_network_message)
+        self.network.connect(
+            self.handle_network_message,
+            self.on_server_connected,
+            self.on_server_connection_failed
+        )
 
+    def on_server_connection_failed(self, error):
+        self.after(0, lambda: messagebox.showerror(
+            self.loc.gettext("connection_error"),
+            self.loc.gettext("server_not_running")
+        ))
+
+    def on_server_connected(self):
+        self.after(0, self._update_ui_connected)
+
+    def _update_ui_connected(self):
+        logger.info("Успешное подключение к серверу")
         self.network_button.config(
             text=self.loc.gettext("disconnect"),
             bg="light green"
