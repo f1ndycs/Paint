@@ -68,7 +68,7 @@ async def broadcast(message, sender=None):
 async def main():
     async with websockets.serve(handler, "localhost", 8765):
         logging.info("Async сервер запущен ws://localhost:8765")
-        await asyncio.Future()  # сервер НЕ завершается
+        await asyncio.Future()
 
 
 if __name__ == "__main__":

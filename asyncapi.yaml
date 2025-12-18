@@ -1,0 +1,90 @@
+asyncapi: '2.6.0'
+
+info:
+  title: Сетевой интерактивный графический редактор
+  version: '1.0.0'
+  description: |
+    Асинхронное взаимодействие клиента и сервера
+    с использованием WebSocket-протокола
+    для синхронизации состояния холста.
+
+servers:
+  websocket-server:
+    url: ws://localhost:8765
+    protocol: ws
+    description: WebSocket сервер графического редактора
+
+channels:
+  canvas:
+    publish:
+      summary: Клиент отправляет изменения холста
+      message:
+        oneOf:
+          - $ref: '#/components/messages/DrawMessage'
+          - $ref: '#/components/messages/ClearMessage'
+
+    subscribe:
+      summary: Сервер отправляет обновления клиентам
+      message:
+        oneOf:
+          - $ref: '#/components/messages/InitMessage'
+          - $ref: '#/components/messages/UpdateMessage'
+          - $ref: '#/components/messages/ClearMessage'
+
+components:
+  messages:
+    DrawMessage:
+      name: DrawMessage
+      payload:
+        type: object
+        properties:
+          type:
+            type: string
+            example: draw
+          data:
+            $ref: '#/components/schemas/CanvasState'
+
+    UpdateMessage:
+      name: UpdateMessage
+      payload:
+        type: object
+        properties:
+          type:
+            type: string
+            example: update
+          data:
+            $ref: '#/components/schemas/CanvasState'
+
+    InitMessage:
+      name: InitMessage
+      payload:
+        type: object
+        properties:
+          type:
+            type: string
+            example: init
+          data:
+            $ref: '#/components/schemas/CanvasState'
+
+    ClearMessage:
+      name: ClearMessage
+      payload:
+        type: object
+        properties:
+          type:
+            type: string
+            example: clear
+          data:
+            type: object
+
+  schemas:
+    CanvasState:
+      type: object
+      properties:
+        drawings:
+          type: array
+          items:
+            type: object
+        background:
+          type: string
+          example: white
