@@ -66,8 +66,8 @@ async def broadcast(message, sender=None):
 
 
 async def main():
-    async with websockets.serve(handler, "localhost", 8765):
-        logging.info("Async сервер запущен ws://localhost:8765")
+    async with websockets.serve(handler, "0.0.0.0", 8765):
+        logging.info("Async сервер запущен ws://0.0.0.0:8765")
         await asyncio.Future()
 
 
