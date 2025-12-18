@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import colorchooser, Scale, Button
+from tkinter import colorchooser
 from typing import List, Tuple, Dict
 from localization import LocalizationManager
 from logger import logger

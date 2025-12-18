@@ -4,7 +4,7 @@ from text_box import TextBox
 from file_manager import FileManager
 from object_manipulator import ObjectManipulator
 import tkinter as tk
-from tkinter import simpledialog
+from tkinter import messagebox
 from network_client import NetworkClient
 from localization import LocalizationManager
 from logger import logger
@@ -59,13 +59,22 @@ class MainWindow(tk.Tk):
 
     def connect_to_server(self):
         """Подключается к серверу и начинает получать обновления"""
+        # Если уже подключены — отключаемся
         if self.network.connected:
             logger.info("Отключение от сервера")
             self.network.disconnect()
-
             self.network_button.config(
                 text=self.loc.gettext("connect"),
                 bg=BUTTONS_BG
+            )
+            return
+
+        # Проверка, запущен ли сервер
+        if not self.network.can_connect():
+            logger.warning("Сервер недоступен")
+            messagebox.showerror(
+                self.loc.gettext("connection_error"),
+                self.loc.gettext("server_not_running")
             )
             return
 

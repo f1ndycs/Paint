@@ -2,10 +2,11 @@ import asyncio
 import pickle
 import threading
 import websockets
+import socket
 
 
 class NetworkClient:
-    def __init__(self, uri="ws://localhost:8765"):
+    def __init__(self, uri="ws://0.0.0.0:8765"):
         self.uri = uri
         self.websocket = None
         self.connected = False
@@ -52,3 +53,11 @@ class NetworkClient:
 
         asyncio.run_coroutine_threadsafe(_close(), self.loop)
         self.connected = False
+
+    def can_connect(self, host="0.0.0.0", port=8765) -> bool:
+        try:
+            sock = socket.create_connection((host, port), timeout=1)
+            sock.close()
+            return True
+        except OSError:
+            return False

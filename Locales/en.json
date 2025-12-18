@@ -83,5 +83,8 @@
   "enter_text_size": "Enter text size (1–400):",
   "apply": "Apply",
 
-  "choose_font": "Choose font"
+  "choose_font": "Choose font",
+
+  "connection_error": "Connection error",
+  "server_not_running": "Server is not running or unavailable"
 }
