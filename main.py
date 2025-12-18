@@ -8,6 +8,7 @@ from tkinter import messagebox
 from network_client import NetworkClient
 from localization import LocalizationManager
 from logger import logger
+from utils import resource_path
 
 
 BUTTONS_BG = 'white'
@@ -17,6 +18,7 @@ FRAME_BG = 'light blue'
 class MainWindow(tk.Tk):
     def __init__(self, loc: LocalizationManager):
         super().__init__()
+        self.iconbitmap(resource_path("Images/icon.ico"))
         self.network = NetworkClient()
         self.loc = loc
         self.loc.register(self)
@@ -159,7 +161,7 @@ class MainWindow(tk.Tk):
         """
         Создание кнопок на основе переданных параметров.
         """
-        button_photo = tk.PhotoImage(file=image_path).subsample(image_subsample)
+        button_photo = tk.PhotoImage(file=resource_path(image_path)).subsample(image_subsample)
         button = tk.Button(frame, image=button_photo, command=command, bg=BUTTONS_BG)
         button.pack(side=pack_side, padx=pack_padx)
         self.create_tooltip(button, tooltip_text)

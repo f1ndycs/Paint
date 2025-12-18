@@ -1,5 +1,5 @@
 import json
-import os
+from utils import resource_path
 
 
 class LocalizationManager:
@@ -24,7 +24,8 @@ class LocalizationManager:
                 observer.update_language()
 
     def load_language(self, lang_code):
-        path = os.path.join("locales", f"{lang_code}.json")
+        path = resource_path(f"locales/{lang_code}.json")
+
         with open(path, "r", encoding="utf-8") as f:
             self.translations = json.load(f)
 
