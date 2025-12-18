@@ -18,3 +18,11 @@ class TestNetworkClient(unittest.TestCase):
     def test_disconnect(self):
         self.client.disconnect()
         self.assertFalse(self.client.connected)
+
+    def test_callback_called(self):
+        callback = MagicMock()
+        data = {"type": "update"}
+
+        callback(data)
+
+        callback.assert_called_once_with(data)
