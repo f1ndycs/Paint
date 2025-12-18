@@ -5,7 +5,7 @@ from file_manager import FileManager
 from object_manipulator import ObjectManipulator
 import tkinter as tk
 from tkinter import simpledialog
-from network import NetworkClient
+from network_client import NetworkClient
 from localization import LocalizationManager
 from logger import logger
 
@@ -17,6 +17,7 @@ FRAME_BG = 'light blue'
 class MainWindow(tk.Tk):
     def __init__(self, loc: LocalizationManager):
         super().__init__()
+        self.network = NetworkClient()
         self.loc = loc
         self.loc.register(self)
         logger.info("Приложение запущено")
@@ -60,28 +61,33 @@ class MainWindow(tk.Tk):
         """Подключается к серверу и начинает получать обновления"""
         if self.network.connected:
             logger.info("Отключение от сервера")
-            ...
-        else:
-            logger.info("Попытка подключения к серверу")
-
-        if self.network.connected:
             self.network.disconnect()
-            self.network_button.config(text="Подключиться", bg=BUTTONS_BG)
-            self.active_button = None
+
+            self.network_button.config(
+                text=self.loc.gettext("connect"),
+                bg=BUTTONS_BG
+            )
             return
 
-        client_name = simpledialog.askstring("Подключение", "Введите ваше имя:")
-        if not client_name:
-            return
+        logger.info("Подключение к серверу")
 
-        # Создаем новый клиент при каждом подключении
-        self.network = NetworkClient()  # Пересоздаем клиент
-        if self.network.connect(client_name):
-            self.network_button.config(text="Отключиться", bg="light green")
-            self.network.start_listening(self.handle_network_message)
-        else:
-            self.network_button.config(text="Ошибка", bg="red")
-            self.network = NetworkClient()  # Сбрасываем клиент при ошибке
+        self.network = NetworkClient()
+        self.network.connect(self.handle_network_message)
+
+        self.network_button.config(
+            text=self.loc.gettext("disconnect"),
+            bg="light green"
+        )
+
+    def update_active_button(self, mode: str):
+        """Обновляет активную кнопку в интерфейсе"""
+        if self.active_button:
+            self.active_button.config(bg=BUTTONS_BG)
+
+        self.active_button = getattr(self, mode + '_button', None)
+
+        if self.active_button:
+            self.active_button.config(bg='gray')
 
     def handle_network_message(self, message):
         """Обрабатывает сообщения от сервера"""
@@ -106,16 +112,6 @@ class MainWindow(tk.Tk):
         elif message_type == 'clear':
             self.drawing_canvas.reset_canvas(notify=False)
             self.drawing_canvas.set_mode('none')
-
-    def update_active_button(self, mode: str):
-        """Обновляет активную кнопку в интерфейсе"""
-        if self.active_button:
-            self.active_button.config(bg=BUTTONS_BG)
-
-        self.active_button = getattr(self, mode + '_button', None)
-
-        if self.active_button:
-            self.active_button.config(bg='gray')
 
     def load_canvas_state(self, state):
         """Загружает состояние холста из данных сервера"""
